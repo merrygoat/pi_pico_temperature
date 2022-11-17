@@ -1,0 +1,13 @@
+import network
+
+
+class StatefulWLAN(network.WLAN):
+    def __init__(self, ssid: str, password: str):
+        super().__init__(network.STA_IF)
+        self.previous_status = None
+        self.ssid = ssid
+        self.password = password
+        self.active(True)
+
+    def connect(self, ssid: str = None, password: str = None, /, *, bssid: bytes = None):
+        self.connect(self.ssid, self.password)
