@@ -8,7 +8,6 @@ from ext.lcd import LCD, BL
 from progress import ProgressIcon
 import micropython
 import gc
-micropython.mem_info()
 
 
 class Image:
@@ -25,9 +24,6 @@ class Image:
     def _load_image(self, filename: str):
         """Assumes data are space delimited integers. First letter indicates image format, second indicates number of
         pixels per row, third indicates number of rows. Following integers are pixel values."""
-        micropython.mem_info()
-        gc.collect()
-        micropython.mem_info()
         with open(filename, 'rb') as input_file:
             self.data = input_file.read()
 
@@ -51,9 +47,12 @@ class Image:
         return buffer
 
     def _greyscale_to_colour(self):
-        """Convert an 8 bit greyscale image to RGB 565."""
-        greyscale = self.data
-        self.data = [(pixel << 8) | (pixel << 3) | (pixel >> 2) for pixel in greyscale]
+        """Convert an 8 bit greyscale image to little-endian RGB565."""
+        self.data = [(pixel & 0b00011100) << 11 |  # low end of green
+                     (pixel & 0b11111000) << 5 |   # blue
+                     (pixel & 0b11111000) |        # red
+                     (pixel & 0b11100000) >> 5     # High end of green
+                     for pixel in self.data]
 
 
 class Sensor:
@@ -102,7 +101,7 @@ def loop(sensor: AHT20, screen: LCD, wlan: wifi.StatefulWLAN):
     progress = ProgressIcon(screen, 145, 2)
     temperature = Temperature(10)
     humidity = Humidity(10)
-    wifi_image = Image("images/wifi_large.bin")
+    wifi_image = Image("images/output.bin")
     print("Loop initialised")
     print(type(wlan))
 
