@@ -9,5 +9,5 @@ class StatefulWLAN(network.WLAN):
         self.password = password
         self.active(True)
 
-    def connect(self, ssid: str = None, password: str = None, /, *, bssid: bytes = None):
-        self.connect(self.ssid, self.password)
+    def connect(self, **kwargs):
+        super().connect(self.ssid, self.password)
