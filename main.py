@@ -1,3 +1,4 @@
+import zlib
 from time import sleep
 from machine import Pin, I2C, PWM
 import framebuf
@@ -6,8 +7,6 @@ import wifi
 from ext.ath20 import AHT20
 from ext.lcd import LCD, BL
 from progress import ProgressIcon
-import micropython
-import gc
 
 
 class Image:
@@ -22,11 +21,12 @@ class Image:
         self._load_image(filename)
 
     def _load_image(self, filename: str):
-        """Assumes data are space delimited integers. First letter indicates image format, second indicates number of
-        pixels per row, third indicates number of rows. Following integers are pixel values."""
+        """Assumes data are compressed space delimited integers. First letter indicates image format, second
+        indicates number of pixels per row, third indicates number of rows. Following integers are pixel values in row,
+        column order."""
         with open(filename, 'rb') as input_file:
             self.data = input_file.read()
-
+        self.data = zlib.decompress(self.data)
         self.mode = self.data[0]
         if self.mode not in self.valid_modes:
             raise SyntaxError("Error reading image from '{filename}'. Invalid image mode.")
@@ -34,7 +34,7 @@ class Image:
         self.height = int(self.data[2])
         self.data = [int(x) for x in self.data[3:]]
         if len(self.data) != self.width * self.height:
-            raise SyntaxError("Error reading image from '{filename}'. Number of pixels doe not match width and height.")
+            raise SyntaxError("Error reading image from '{filename}'. Number of pixels does not match width and height.")
 
     def get_framebuffer(self) -> framebuf.FrameBuffer:
         if self.mode == 0:
@@ -53,6 +53,7 @@ class Image:
                      (pixel & 0b11111000) |        # red
                      (pixel & 0b11100000) >> 5     # High end of green
                      for pixel in self.data]
+        self.mode = 1
 
 
 class Sensor:
@@ -84,8 +85,8 @@ class Temperature(Sensor):
         super().__init__(history_len)
 
     def print_to_screen(self, screen: LCD):
-        screen.fill_rect(2, 2, 120, 8, screen.BLACK)
-        screen.text("Temp: %0.2f C" % self.value, 2, 2, screen.WHITE)
+        screen.fill_rect(2, 4, 110, 8, screen.BLACK)
+        screen.text("Temp: %0.2f C" % self.value, 2, 4, screen.WHITE)
 
 
 class Humidity(Sensor):
@@ -93,15 +94,16 @@ class Humidity(Sensor):
         super().__init__(history_len)
 
     def print_to_screen(self, screen: LCD):
-        screen.fill_rect(2, 20, 120, 8, screen.BLACK)
-        screen.text("Humidity: %0.2f %%" % self.value, 2, 20, screen.WHITE)
+        screen.fill_rect(2, 22, 120, 8, screen.BLACK)
+        screen.text("Humidity: %0.2f %%" % self.value, 2, 22, screen.WHITE)
 
 
 def loop(sensor: AHT20, screen: LCD, wlan: wifi.StatefulWLAN):
-    progress = ProgressIcon(screen, 145, 2)
+    progress = ProgressIcon(screen, 145, 3)
     temperature = Temperature(10)
     humidity = Humidity(10)
-    wifi_image = Image("images/output.bin")
+    wifi_image = Image("images/wifi.bin")
+    x_image = Image("images/x.bin")
     print("Loop initialised")
     print(type(wlan))
 
@@ -111,21 +113,23 @@ def loop(sensor: AHT20, screen: LCD, wlan: wifi.StatefulWLAN):
         if time % 1 == 0:
             sample_temperature(sensor, screen, temperature, humidity, progress)
         if time % 10 == 0:
-            check_wifi(wlan, screen, wifi_image)
+            check_wifi(wlan, screen, wifi_image, x_image)
         time += 1
         if time == 10:
             time = 0
         sleep(1)
 
 
-def check_wifi(wlan: wifi.StatefulWLAN, screen: LCD, wifi_icon: Image):
+def check_wifi(wlan: wifi.StatefulWLAN, screen: LCD, wifi_icon: Image, x_icon: Image):
     status = wlan.status()
     print(f"Wifi status: {status}")
     if wlan.status() != wlan.previous_status:
         if status == 3:
-            screen.blit(wifi_icon.get_framebuffer(), 50, 50)
+            screen.blit(wifi_icon.get_framebuffer(), 120, 2)
             screen.show()
         else:
+            screen.blit(wifi_icon.get_framebuffer(), 120, 2)
+            screen.blit(x_icon.get_framebuffer(), 120, 1, 0)
             wlan.disconnect()
             wlan.connect()
     wlan.previous_status = status
