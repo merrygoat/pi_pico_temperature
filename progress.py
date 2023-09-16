@@ -1,4 +1,4 @@
-from ext.lcd import LCD
+from ext.waveshare.lcd import LCD
 
 
 class ProgressIcon:

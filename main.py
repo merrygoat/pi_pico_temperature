@@ -4,8 +4,10 @@ from machine import Pin, I2C, PWM
 import framebuf
 
 import wifi
-from ext.ath20 import AHT20
-from ext.lcd import LCD, BL
+from ext.aht.aht20 import AHT20
+from ext.waveshare.lcd import LCD, BL
+
+from plot import ScatterPlot
 from progress import ProgressIcon
 
 
@@ -59,7 +61,7 @@ class Image:
 class Sensor:
     def __init__(self, history_len: int):
         self.history_len = history_len
-        self.history = [-1] * history_len
+        self.history: list = [-1] * history_len
         self.pointer = -1
 
     def update_pointer(self):
@@ -69,7 +71,6 @@ class Sensor:
 
     def update_value(self, value: float):
         self.update_pointer()
-        # noinspection PyTypeChecker
         self.history[self.pointer] = value
 
     @property
@@ -98,10 +99,19 @@ class Humidity(Sensor):
         screen.text("Humidity: %0.2f %%" % self.value, 2, 22, screen.WHITE)
 
 
+def plot_graph(plot: ScatterPlot):
+    x_data = [1, 2, 3, 4, 5, 6, 7]
+    y_data = [30, 50, 90, 60, 25, 65, 70]
+    data = (x_data, y_data)
+
+    plot.update_plot(data)
+
+
 def loop(sensor: AHT20, screen: LCD, wlan: wifi.StatefulWLAN):
     progress = ProgressIcon(screen, 145, 3)
     temperature = Temperature(10)
     humidity = Humidity(10)
+    plot = ScatterPlot(screen, (5, 40), (150, 85))
     wifi_image = Image("images/wifi.bin")
     x_image = Image("images/x.bin")
     print("Loop initialised")
@@ -112,6 +122,7 @@ def loop(sensor: AHT20, screen: LCD, wlan: wifi.StatefulWLAN):
         print(f"Tick {time}")
         if time % 1 == 0:
             sample_temperature(sensor, screen, temperature, humidity, progress)
+            plot_graph(plot)
         if time % 10 == 0:
             check_wifi(wlan, screen, wifi_image, x_image)
         time += 1

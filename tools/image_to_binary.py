@@ -1,9 +1,11 @@
+from zlib import compress
+
 from PIL import Image
 import PIL.ImageOps
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-import zlib
+
 matplotlib.use("TkAgg")
 
 
@@ -42,7 +44,7 @@ def image_to_bin(input_path: str, output_path: str, dimensions: tuple, crop: tup
                 for pixel in data]
         data = [1, (right_crop - left_crop), (bottom_crop - top_crop)] + data
 
-    data = zlib.compress(bytes(data))
+    data = compress(bytes(data))
     with open(output_path, "wb") as output_file:
         output_file.write(data)
 
