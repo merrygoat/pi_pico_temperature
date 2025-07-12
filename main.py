@@ -1,13 +1,14 @@
 from time import sleep
-from machine import Pin, I2C, PWM
 
 from ext.aht.aht20 import AHT20
-from ext.waveshare.lcd import LCD, BL
+from ext.waveshare.lcd import LCD
 
 import wifi
 import progress
 import rtc
 import sensors
+from image import init_screen
+from sensors import sample_sensor, init_ath
 
 
 def loop(sensor: AHT20, screen: LCD, wlan: wifi.StatefulWLAN, clock: rtc.Clock):
@@ -24,17 +25,11 @@ def loop(sensor: AHT20, screen: LCD, wlan: wifi.StatefulWLAN, clock: rtc.Clock):
             update_screen(screen, temperature, humidity, progress_icon)
             # plot_graph(plot, temperature.history)
         if time % 10 == 0:
-            status = wlan.check_status()
-            wlan.update_wifi_icon(status, screen)
+            wlan.check_status(screen)
         time += 1
         if time == 10:
             time = 0
         sleep(1)
-
-
-def sample_sensor(sensor: AHT20, temperature: sensors.Temperature, humidity: sensors.Humidity):
-    temperature.update_value(round(sensor.temperature, 2))
-    humidity.update_value(round(sensor.relative_humidity, 2))
 
 
 def update_screen(screen: LCD, temperature: sensors.Temperature, humidity: sensors.Humidity, progress_icon: progress.ProgressIcon):
@@ -42,20 +37,6 @@ def update_screen(screen: LCD, temperature: sensors.Temperature, humidity: senso
     humidity.print_to_screen(screen)
     progress_icon.tick(screen)
     screen.show()
-
-
-def init_ath() -> AHT20:
-    """Initialise connection to ATH20"""
-    i2c = I2C(0, scl=Pin(21), sda=Pin(20))
-    return AHT20(i2c)
-
-
-def init_screen() -> LCD:
-    """Initialise LCD object."""
-    pwm = PWM(Pin(BL))
-    pwm.freq(1000)
-    pwm.duty_u16(32768)
-    return LCD()
 
 
 def load_config() -> dict:
@@ -71,15 +52,15 @@ def load_config() -> dict:
 
 def main():
     config = load_config()
-    sensor = init_ath()
-    print("Sensor initialised")
     screen = init_screen()
     print("Screen initialised")
-    screen.fill(screen.BLACK)
+    sensor = init_ath()
+    print("Sensor initialised")
     wlan = wifi.StatefulWLAN(config["ssid"], config["password"])
-    wlan.connect()
-    print("Wifi initialised")
+    connection_success = wlan.initialise(screen)
     clock = rtc.Clock()
+    if connection_success:
+        clock.initialise()
     loop(sensor, screen, wlan, clock)
 
 

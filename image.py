@@ -1,5 +1,8 @@
 import deflate
 import framebuf
+from machine import PWM, Pin
+
+from ext.waveshare.lcd import LCD, BL
 
 
 class Image:
@@ -47,3 +50,14 @@ class Image:
                      (pixel & 0b11100000) >> 5     # High end of green
                      for pixel in self.data]
         self.mode = 1
+
+
+def init_screen() -> LCD:
+    """Initialise LCD object."""
+    pwm = PWM(Pin(BL))
+    pwm.freq(1000)
+    pwm.duty_u16(32768)
+    screen = LCD()
+    screen.fill(screen.BLACK)
+    screen.show()
+    return screen
