@@ -1,0 +1,38 @@
+import collections
+
+from ext.waveshare.lcd import LCD
+
+
+class Sensor:
+    def __init__(self, history_len: int):
+        self.history_len = history_len
+        self.history = collections.deque([], self.history_len)
+
+    def update_value(self, value: float):
+        self.history.appendleft(value)
+        print(list(self.history))
+
+    @property
+    def value(self):
+        return self.history[0]
+
+    def print_to_screen(self, screen: LCD):
+        raise NotImplementedError("Not implemented in base class")
+
+
+class Temperature(Sensor):
+    def __init__(self, history_len: int):
+        super().__init__(history_len)
+
+    def print_to_screen(self, screen: LCD):
+        screen.fill_rect(2, 4, 110, 8, screen.BLACK)
+        screen.text("Temp: %0.2f C" % self.value, 2, 4, screen.WHITE)
+
+
+class Humidity(Sensor):
+    def __init__(self, history_len: int):
+        super().__init__(history_len)
+
+    def print_to_screen(self, screen: LCD):
+        screen.fill_rect(2, 22, 120, 8, screen.BLACK)
+        screen.text("Humidity: %0.2f %%" % self.value, 2, 22, screen.WHITE)
